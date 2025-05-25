@@ -1,9 +1,28 @@
+"""
+This module provides classes and functions to generate and visualize
+patterns, which are figures made of identical equilateral triangles
+connected edge-to-edge on a plane.
+
+The script defines a triangular grid system using three axes at 120 degrees
+to each other. Triangles are identified by coordinates (x, y, z)
+representing the three grid lines forming their sides. The sum x+y+z
+is +1 or -1, indicating the triangle's orientation.
+
+The core functionality includes:
+- Representing individual triangles (`Triangle` class) and their transformations.
+- Representing patterns of triangles (`Pattern` class), including methods
+  for transformations, normalization, and symmetry-aware equality checking.
+- Visualization of patterns as images using PIL.
+"""
+
 from PIL import Image, ImageDraw
 import math
 from pathlib import Path
 
 
 class Axes:
+    """Represents the three axes in the triangular coordinate system."""
+
     def __init__(self):
         self._axes = ['x', 'y', 'z']
 
@@ -21,6 +40,8 @@ class Axes:
 
 
 class Triangle:
+    """Represents a single equilateral triangle in the triangular grid."""
+
     def __init__(self, x, y, z):
         self.x = x
         self.y = y
@@ -39,6 +60,7 @@ class Triangle:
         return f'Triangle({self.x}, {self.y}, {self.z})'
 
     def get_coord(self, axis):
+        """Returns the coordinate value for the specified axis."""
         match axis:
             case 'x':
                 return self.x
@@ -50,6 +72,7 @@ class Triangle:
                 return None
 
     def get_neighbour_coords(self, axis):
+        """Returns coordinates of the neighboring triangle along the specified axis."""
         look = self.x + self.y + self.z
         match axis:
             case 'x':
@@ -62,10 +85,12 @@ class Triangle:
                 return None
 
     def get_neighbour(self, axis):
+        """Returns the neighboring triangle along the specified axis."""
         x, y, z = self.get_neighbour_coords(axis)
         return Triangle(x, y, z)
 
     def get_rotated_coords(self, angle):
+        """Returns coordinates after rotation by the specified angle (multiple of 60 degrees)."""
         match angle:
             case 60:
                 return -self.y, -self.z, -self.x
@@ -81,10 +106,12 @@ class Triangle:
                 return None
 
     def get_rotated(self, angle):
+        """Returns a new triangle rotated by the specified angle."""
         x, y, z = self.get_rotated_coords(angle)
         return Triangle(x, y, z)
 
     def get_reflected_coords(self, axis):
+        """Returns coordinates after reflection over the specified axis."""
         match axis:
             case 'x':
                 return -self.x, -self.z, -self.y
@@ -96,10 +123,12 @@ class Triangle:
                 return None
 
     def get_reflected(self, axis):
+        """Returns a new triangle reflected over the specified axis."""
         x, y, z = self.get_reflected_coords(axis)
         return Triangle(x, y, z)
 
     def get_shifted_coords(self, shift, axis):
+        """Returns coordinates after shifting along the specified axis."""
         match axis:
             case 'x':
                 return self.x, self.y + shift, self.z - shift
@@ -111,18 +140,20 @@ class Triangle:
                 return None
 
     def get_shifted(self, shift, axis):
+        """Returns a new triangle shifted along the specified axis."""
         x, y, z = self.get_shifted_coords(shift, axis)
         return Triangle(x, y, z)
 
     def get_copy(self):
+        """Returns a copy of this triangle."""
         return Triangle(self.x, self.y, self.z)
 
     def get_cartesian_coords(self, axis='all'):
+        """Converts triangular coordinates to Cartesian coordinates for drawing."""
         tg30 = math.tan(math.pi / 6.0)
         match axis:
             case 'x':
                 x1 = self.x / (2.0 * tg30)
-                # y1 = x1 * tg30 + self.y
                 y1 = self.x / 2.0 + self.y
                 x2 = x1
                 y2 = -self.x / 2.0 - self.z
@@ -152,6 +183,8 @@ class Triangle:
 
 
 class Pattern:
+    """Represents a collection of triangles forming a pattern."""
+
     def __init__(self):
         self._triangles = []
 
@@ -165,8 +198,8 @@ class Pattern:
         return item in self._triangles
 
     def __eq__(self, other):
+        """Checks if two patterns are equivalent under rotation/reflection."""
         found_equal = False
-        axes = Axes()
         aligned_self = self.get_aligned('z')
         rotated_other = other
         for _ in range(6):
@@ -197,9 +230,11 @@ class Pattern:
         return f'Triangle pattern: {', '.join([str(triangle) for triangle in self])}'
 
     def add_triangle(self, triangle):
+        """Adds a triangle to the pattern."""
         self._triangles.append(triangle)
 
     def get_min_coord(self, axis):
+        """Returns the minimum coordinate value along the specified axis."""
         curr_min = None
         for triangle in self._triangles:
             if curr_min is None:
@@ -209,6 +244,7 @@ class Pattern:
         return curr_min
 
     def get_max_coord(self, axis):
+        """Returns the maximum coordinate value along the specified axis."""
         curr_max = None
         for triangle in self._triangles:
             if curr_max is None:
@@ -218,24 +254,28 @@ class Pattern:
         return curr_max
 
     def get_shifted(self, shift, axis):
+        """Returns a new pattern shifted along the specified axis."""
         shifted = Pattern()
         for triangle in self:
             shifted.add_triangle(triangle.get_shifted(shift, axis))
         return shifted
 
     def get_rotated(self, angle):
+        """Returns a new pattern rotated by the specified angle."""
         rotated = Pattern()
         for triangle in self:
             rotated.add_triangle(triangle.get_rotated(angle))
         return rotated
 
     def get_reflected(self, axis):
+        """Returns a new pattern reflected over the specified axis."""
         reflected = Pattern()
         for triangle in self:
             reflected.add_triangle(triangle.get_reflected(axis))
         return reflected
 
     def get_aligned(self, free_axis):
+        """Aligns the pattern along the specified free axis."""
         match free_axis:
             case 'x':
                 max_coord = self.get_max_coord('y')
@@ -257,6 +297,7 @@ class Pattern:
         return aligned
 
     def get_centered(self):
+        """Centers the pattern around the origin."""
         min_coord = self.get_min_coord('x')
         max_coord = self.get_max_coord('x')
         mean_coord = int((min_coord + max_coord) / 2)
@@ -268,15 +309,18 @@ class Pattern:
         return centered
 
     def get_copy(self):
+        """Returns a deep copy of the pattern."""
         pattern_copy = Pattern()
         for triangle in self:
             pattern_copy.add_triangle(triangle.get_copy())
         return pattern_copy
 
     def create_image(self, show_axes=True, show_grid=True):
+        """Creates an image representation of the pattern."""
         tg30 = math.tan(math.pi / 6.0)
         axes = Axes()
 
+        # Calculate the bounding radius for the image
         lines = []
         radius = 0
         for triangle in self:
@@ -296,6 +340,7 @@ class Pattern:
                 else:
                     lines.append([line, 'bold'])
 
+        # Set up image dimensions
         x_min = -int(radius) - 1
         y_min = x_min
         x_max = -x_min
@@ -309,8 +354,10 @@ class Pattern:
         draw = ImageDraw.Draw(img)
 
         def to_real(_x, _y):
+            """Converts coordinates to image pixel coordinates."""
             return _x * scale + img_width / 2, img_height / 2 - _y * scale
 
+        # Draw grid lines if enabled
         if show_grid:
             for x in range(int(x_min * 2.0 * tg30), int(x_max * 2.0 * tg30) + 1):
                 x1, y1 = to_real(x / (2.0 * tg30), y_min)
@@ -336,6 +383,7 @@ class Pattern:
                 draw.line([x1, y1, x2, y2], fill='lightgray', width=1)
                 draw.line([x3, y1, x4, y2], fill='lightgray', width=1)
 
+        # Draw axes if enabled
         if show_axes:
             x0 = 0
             y0 = 0
@@ -353,6 +401,7 @@ class Pattern:
             draw.line([x0, y0, x2, y2], fill='gray', width=1)
             draw.line([x0, y0, x3, y3], fill='gray', width=1)
 
+        # Draw all triangle edges
         for line in lines:
             x1, y1 = to_real(line[0][0][0], line[0][0][1])
             x2, y2 = to_real(line[0][1][0], line[0][1][1])
@@ -364,13 +413,19 @@ class Pattern:
         return img
 
     def dump_to_file(self, file_path):
+        """Saves the pattern image to a file."""
         img = self.create_image()
         img.save(file_path)
 
 
 def generate_patterns(patterns, triangles_to_add, sketch=None):
+    """
+    Recursively generates all unique patterns with the specified number of triangles.
+    Patterns that are rotations or reflections of each other are considered identical.
+    """
     axes = Axes()
     if sketch is None:
+        # Initialize with a single triangle
         sketch = Pattern()
         triangle = Triangle(0, 1, 0)
         sketch.add_triangle(triangle)
@@ -380,6 +435,7 @@ def generate_patterns(patterns, triangles_to_add, sketch=None):
             patterns.append(sketch)
         return
 
+    # Try adding neighbors to each existing triangle
     for triangle in sketch:
         for axis in axes:
             neighbour = triangle.get_neighbour(axis)
@@ -390,6 +446,7 @@ def generate_patterns(patterns, triangles_to_add, sketch=None):
             if triangles_to_add > 1:
                 generate_patterns(patterns, triangles_to_add - 1, new_sketch)
             else:
+                # Check if this is a new unique pattern
                 found_new_pattern = True
                 for pattern in patterns:
                     if pattern == new_sketch:
@@ -401,10 +458,12 @@ def generate_patterns(patterns, triangles_to_add, sketch=None):
 
 
 def main():
+    """Main function to generate and save patterns."""
     patterns = []
     num_triangles = int(input('Enter number of triangles: '))
     generate_patterns(patterns, num_triangles)
 
+    # Create output directory and save images
     work_path = Path('.')
     output_path = work_path / str(num_triangles)
     output_path.mkdir(exist_ok=True)

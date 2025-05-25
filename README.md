@@ -1,0 +1,1 @@
+Given n identical equilateral triangles. The triangles are placed on a plane side-to-side. It is necessary to generate images of all possible figures that can be formed this way. Each figure must be output exactly once, and figures that can be transformed into one another via rotation or reflection are considered identical.
